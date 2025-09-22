@@ -29,7 +29,6 @@ export default function Home() {
   const { lastUpdate } = useRealtimeUpdates();
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Handle real-time updates
   useEffect(() => {
     if (lastUpdate) {
       console.log('New email received, refreshing dashboard...');
@@ -38,7 +37,7 @@ export default function Home() {
   }, [lastUpdate]);
 
   return (
-    <div className="min-h-screen text-gray-900 dark:text-white">
+    <div className="min-h-screen text-[#002153] dark:text-white bg-white dark:bg-[#001A3A]">
       <Header currentPage={currentPage} setCurrentPage={setCurrentPage} />
       {currentPage === 'settings' ? (
         <SettingsPage />
@@ -48,8 +47,8 @@ export default function Home() {
         <main className="p-4 md:p-5 lg:p-6">
           {/* Greeting and Summary Cards Section */}
           {settings.dashboard?.showSections?.summaryCards && (
-            <div className="rounded-lg shadow p-6 bg-white/25 dark:bg-gray-800/25 backdrop-blur-md border border-white/18 dark:border-white/10 rounded-2xl shadow-lg p-5 mb-4">
-              <h1 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">
+            <div className="rounded-2xl shadow-lg p-5 mb-4 bg-[#E6F0FA]/90 dark:bg-[#001A3A]/30 backdrop-blur-md border border-[#CBD5E1]/30 dark:border-[#CBD5E1]/15">
+              <h1 className="text-xl font-semibold mb-4 text-[#002153] dark:text-white">
                 {getGreeting()}, Welcome back!
               </h1>
               <SummaryCards key={`summary-${refreshKey}`} />
@@ -77,7 +76,7 @@ export default function Home() {
               <div className="lg:col-span-2 h-full">
                 <DashboardSection 
                   title={
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 text-[#002153] dark:text-white">
                       <MdOutlineDocumentScanner className="w-6 h-6" />
                       <span>Recent Applications</span>
                     </div>
@@ -105,9 +104,10 @@ export default function Home() {
           </div>
         </main>
       )}
-      <footer className="text-center py-4 text-sm text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-        Powered by <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Postmark</span> · Inspired by the <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-semibold">Dev.to</span> community · Made with <span className="inline-block animate-[heartbeat_1.5s_ease-in-out_infinite]">❤️</span>
+      <footer className="text-center py-4 text-sm text-[#4B5563] dark:text-[#CBD5E1] border-t border-[#CBD5E1]/50 dark:border-[#002153]/50">
+        Powered by <span className="bg-gradient-to-r from-[#002153] to-[#4A90E2] bg-clip-text text-transparent font-semibold">Postmark</span> · Inspired by the <span className="bg-gradient-to-r from-[#002153] to-[#4A90E2] bg-clip-text text-transparent font-semibold">Dev.to</span> community · Made with <span className="inline-block animate-[heartbeat_1.5s_ease-in-out_infinite]">❤️</span>
       </footer>
     </div>
   );
 }
+

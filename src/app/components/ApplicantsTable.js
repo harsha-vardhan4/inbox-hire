@@ -12,59 +12,48 @@ export default function ApplicantsTable() {
       <table className="min-w-full leading-normal">
         <thead>
           <tr>
-            <th className="px-5 py-3 border-b-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-              No.
-            </th>
-            <th className="px-5 py-3 border-b-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-              Photo
-            </th>
-            <th className="px-5 py-3 border-b-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-              Name
-            </th>
-            <th className="px-5 py-3 border-b-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-              Role
-            </th>
-            <th className="px-5 py-3 border-b-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-              Status
-            </th>
-            <th className="px-5 py-3 border-b-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-              Date
-            </th>
+            {['No.', 'Photo', 'Name', 'Role', 'Status', 'Date'].map((header) => (
+              <th
+                key={header}
+                className="px-5 py-3 border-b-2 border-[#CBD5E1] bg-[#E6F0FA] text-left text-xs font-semibold text-[#002153] uppercase tracking-wider"
+              >
+                {header}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {applicants.map((applicant) => (
-            <tr key={applicant.id}>
-              <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                <p className="text-gray-900 dark:text-white whitespace-no-wrap">{applicant.id.toString().padStart(2, '0')}</p>
+            <tr key={applicant.id} className="bg-white border-b border-[#CBD5E1] hover:bg-[#E6F0FA]">
+              <td className="px-5 py-5 text-sm text-[#002153] whitespace-no-wrap">
+                {applicant.id.toString().padStart(2, '0')}
               </td>
-              <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                {/* Placeholder Image */}
+              <td className="px-5 py-5 text-sm text-[#002153] whitespace-no-wrap">
                 <div className="flex-shrink-0 w-10 h-10">
-                  <img className="w-full h-full rounded-full"
-                       src={applicant.photo} alt={`Photo of ${applicant.name}`} />
+                  <img
+                    className="w-full h-full rounded-full"
+                    src={applicant.photo}
+                    alt={`Photo of ${applicant.name}`}
+                  />
                 </div>
               </td>
-              <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                <p className="text-gray-900 dark:text-white whitespace-no-wrap">{applicant.name}</p>
-              </td>
-              <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                <p className="text-gray-900 dark:text-white whitespace-no-wrap">{applicant.role}</p>
-              </td>
-              <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                <span
-                  className="relative inline-block px-3 py-1 font-semibold text-green-900 leading-tight">
-                  <span aria-hidden="true" className="absolute inset-0 bg-green-200 opacity-50 rounded-full"></span>
+              <td className="px-5 py-5 text-sm text-[#002153] whitespace-no-wrap">{applicant.name}</td>
+              <td className="px-5 py-5 text-sm text-[#002153] whitespace-no-wrap">{applicant.role}</td>
+              <td className="px-5 py-5 text-sm whitespace-no-wrap">
+                <span className="relative inline-block px-3 py-1 font-semibold leading-tight text-[#002153]">
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-full"
+                    style={{ backgroundColor: '#CBD5E1', opacity: 0.5 }}
+                  ></span>
                   <span className="relative">{applicant.status}</span>
                 </span>
               </td>
-              <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                <p className="text-gray-900 dark:text-white whitespace-no-wrap">{applicant.date}</p>
-              </td>
+              <td className="px-5 py-5 text-sm text-[#002153] whitespace-no-wrap">{applicant.date}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   );
-} 
+}
