@@ -1,10 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSettings } from '../utils/useSettings';
 
-export const NotificationContext = React.createContext();
+export const NotificationContext = createContext();
 
 export function useNotification() {
   const context = useContext(NotificationContext);
@@ -21,10 +21,22 @@ export function NotificationProvider({ children }) {
   const router = useRouter();
   const { settings } = useSettings();
 
-  // Get only the 3 most recent notifications
-  const notifications = allNotifications.slice(0, 3);
+  // Ref to keep latest notifications for useEffect without dependency issues
+  const allNotificationsRef = useRef(allNotifications);
+  useEffect(() => {
+    allNotificationsRef.current = allNotifications;
+  }, [allNotifications]);
 
-  // Update unread count whenever notifications change
+  const notifications = allNotifications.slice(0, 3); // Show only the 3 latest
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Update unread count when notifications change
   useEffect(() => {
     const unread = allNotifications.filter(n => !n.read).length;
     setUnreadCount(unread);
@@ -32,37 +44,38 @@ export function NotificationProvider({ children }) {
 
   // Function to add a new notification
   const addNotification = useCallback((email) => {
-    console.log('Adding new notification for email:', email);
+    if (!email || !email.messageId || !email.date) {
+      console.warn('⚠️ Skipping invalid email data:', email);
+      return;
+    }
+
     const newNotification = {
-      id: email.id || email.messageId || Date.now().toString(),
+      id: email.messageId || Date.now().toString(),
       message: `New email from ${email.from}: ${email.subject}`,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(email.date).toISOString(),
       read: false,
       email: email
     };
 
     setAllNotifications(prev => {
-      // Check if notification already exists
       const exists = prev.some(n => n.id === newNotification.id);
       if (exists) {
-        console.log('Notification already exists, skipping');
+        console.log('🔁 Duplicate notification skipped:', newNotification.id);
         return prev;
       }
-      console.log('Adding new notification to state');
       return [newNotification, ...prev];
     });
 
-    // Show browser notification if permission granted
+    // Show browser notification
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('New Email Received', {
+      new Notification('📬 New Email Received', {
         body: `Subject: ${email.subject}`,
         icon: '/favicon.ico',
-        tag: newNotification.id // Prevent duplicate notifications
+        tag: newNotification.id,
       });
     }
   }, []);
 
-  // Function to mark notifications as read
   const markAsRead = useCallback((notificationId) => {
     setAllNotifications(prev =>
       prev.map(notification =>
@@ -73,85 +86,80 @@ export function NotificationProvider({ children }) {
     );
   }, []);
 
-  // Function to mark all notifications as read
   const markAllAsRead = useCallback(() => {
     setAllNotifications(prev =>
       prev.map(notification => ({ ...notification, read: true }))
     );
   }, []);
 
-  // Function to handle notification click
   const handleNotificationClick = useCallback((notification) => {
     markAsRead(notification.id);
     router.push('/applications');
   }, [markAsRead, router]);
 
-  // Poll for new emails based on refresh interval
+  // Poll for new emails periodically
   useEffect(() => {
-    let isPolling = true;
-    const refreshInterval = settings?.dashboard?.refreshInterval || 5; // Default to 5 minutes if not set
-    const pollInterval = refreshInterval * 60 * 1000; // Convert minutes to milliseconds
+  let isPolling = true;
+  const refreshInterval = settings?.dashboard?.refreshInterval || 5; // minutes
+  const pollInterval = refreshInterval * 60 * 1000;
 
-    const pollEmails = async () => {
-      if (!isPolling) return;
+  const pollEmails = async () => {
+    if (!isPolling) return;
 
-      try {
-        console.log('Polling for new emails...');
-        const response = await fetch('/api/get-emails');
-        const emails = await response.json();
-        
-        if (!Array.isArray(emails)) {
-          console.error('Invalid response format:', emails);
-          return;
-        }
+    console.log('🔄 Polling for new emails...');
+    console.log('Current notifications count:', allNotificationsRef.current.length);
 
-        console.log('Received emails:', emails.length);
-        
-        // Get the latest notification timestamp
-        const latestNotificationTime = allNotifications[0]?.timestamp;
-        console.log('Latest notification time:', latestNotificationTime);
-        
-        // Add notifications for new emails
-        emails.forEach(email => {
-          // Convert email date to timestamp for comparison
-          const emailDate = new Date(email.date).getTime();
-          const latestTime = latestNotificationTime ? new Date(latestNotificationTime).getTime() : 0;
-          
-          console.log('Comparing dates:', {
-            emailDate,
-            latestTime,
-            isNew: emailDate > latestTime
-          });
-          
-          if (emailDate > latestTime) {
-            console.log('Found new email:', email);
-            addNotification(email);
-          }
-        });
-        
-        setLastPollTime(new Date().toISOString());
-      } catch (error) {
-        console.error('Error polling for new emails:', error);
+    try {
+      const response = await fetch('/api/get-emails?date=' + new Date().toISOString().split('T')[0]);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Fetch failed: ${response.status}`, errorText);
+        return;
       }
-    };
 
-    // Initial poll
-    pollEmails();
+      const data = await response.json();
 
-    // Set up polling interval
-    const interval = setInterval(pollEmails, pollInterval);
+      if (!data || !Array.isArray(data.emails)) {
+        console.error('❌ Invalid email response:', data);
+        return;
+      }
 
-    return () => {
-      isPolling = false;
-      clearInterval(interval);
-    };
-  }, [allNotifications, addNotification, settings?.dashboard?.refreshInterval]);
+      const emails = data.emails;
+      console.log(`📨 Received ${emails.length} emails`);
+
+      const latestNotificationTime = allNotificationsRef.current[0]?.timestamp
+        ? new Date(allNotificationsRef.current[0].timestamp).getTime()
+        : 0;
+
+      emails.forEach(email => {
+        const emailTime = new Date(email.date).getTime();
+        if (emailTime > latestNotificationTime) {
+          addNotification(email);
+        }
+      });
+
+      setLastPollTime(new Date().toISOString());
+
+    } catch (error) {
+      console.error('❌ Error during email polling:', error);
+    }
+  };
+
+  pollEmails();
+  const intervalId = setInterval(pollEmails, pollInterval);
+
+  return () => {
+    isPolling = false;
+    clearInterval(intervalId);
+  };
+}, [settings?.dashboard?.refreshInterval, addNotification]);
 
   return (
     <NotificationContext.Provider
       value={{
-        notifications, // This will only contain the 3 most recent notifications
-        allNotifications, // Keep track of all notifications for internal use
+        notifications,
+        allNotifications,
         unreadCount,
         addNotification,
         markAsRead,
@@ -163,4 +171,4 @@ export function NotificationProvider({ children }) {
       {children}
     </NotificationContext.Provider>
   );
-} 
+}

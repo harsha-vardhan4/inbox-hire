@@ -6,6 +6,7 @@ import { NotificationProvider } from "./context/NotificationContext";
 import { RealtimeUpdatesProvider } from "./utils/useRealtimeUpdates";
 import { SettingsProvider } from "./utils/useSettings";
 import { Toaster } from 'react-hot-toast';
+import { DateProvider } from "./context/DateContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,10 +37,12 @@ export default function RootLayout({ children }) {
           <DataStoreProvider>
             <ToastProvider>
               <NotificationProvider>
+                <DateProvider>
                 <RealtimeUpdatesProvider>
                   {children}
                   <Toaster position="top-right" />
                 </RealtimeUpdatesProvider>
+                </DateProvider>
               </NotificationProvider>
             </ToastProvider>
           </DataStoreProvider>

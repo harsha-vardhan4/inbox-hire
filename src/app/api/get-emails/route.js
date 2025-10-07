@@ -1,46 +1,39 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
+import { fetchEmailsFromDate } from '../../api/inbound-email/gmailinputs';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-export async function GET() {
+export async function GET(request) {
   try {
-    const filePath = path.join(process.cwd(), 'src', 'data', 'emails.json');
-    
-    try {
-      const fileContent = await fs.readFile(filePath, 'utf-8');
-      const emails = JSON.parse(fileContent);
-      return NextResponse.json(emails, {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-    } catch (error) {
-      // If file doesn't exist or is invalid, return empty array
-      return NextResponse.json([], {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
+    const { searchParams } = new URL(request.url);
+    const date = searchParams.get('date');
+    console.log('📅 API request date param:', date);
+
+    if (!date) {
+      return NextResponse.json({ error: 'Missing date parameter' }, { status: 400 });
     }
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD.' }, { status: 400 });
+    }
+
+    const emails = await fetchEmailsFromDate(date);
+    console.log('📥 Emails fetched:', emails.length);
+
+    // Sanitize and validate JSON serialization
+    let sanitizedEmails;
+    try {
+      sanitizedEmails = JSON.parse(JSON.stringify(emails));
+    } catch (serializationError) {
+      console.error('❌ Serialization error:', serializationError);
+      return NextResponse.json(
+        { error: 'Emails contain unserializable data', details: serializationError.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, emails: sanitizedEmails });
   } catch (error) {
-    console.error('Error reading emails:', error);
-    return NextResponse.json(
-      { error: 'Failed to read emails' },
-      { 
-        status: 500,
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      }
-    );
+    console.error('❌ API Error:', error);
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
-} 
+}

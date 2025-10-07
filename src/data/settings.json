@@ -68,6 +68,15 @@
     "refreshInterval": 5
   },
   "api": {
-    "geminiKey": "API KEY HERE"
+    "pop3": {
+      "host": "pop.gmail.com",
+      "port": 995,
+      "tls": true,
+      "auth": {
+        "user": "sriharshasepana424@gmail.com",
+        "pass": "igiy hpdq bxoi rldc"
+      }
+    },
+    "geminiKey": "your-gemini-api-key-if-used"
   }
 }

@@ -1,4 +1,4 @@
-// Helper function to detect email status
+// Helper function to detect email status based on subject and text body
 function detectStatus(subject, textBody) {
   const content = (subject + ' ' + textBody).toLowerCase();
   if (content.includes('rejected')) return 'rejected';
@@ -7,68 +7,83 @@ function detectStatus(subject, textBody) {
   return 'other';
 }
 
-// Helper function to map email data to application format
+// Helper function to map raw email data to application format
 export function mapEmailToApplication(email) {
   const fromEmail = email.from || '';
   const domainMatch = fromEmail.match(/@([^.]+)\./);
   const source = domainMatch ? domainMatch[1] : 'Unknown';
-  
-  // Ensure status is a string and has a default value
-  const status = String(email.status || 'other').toLowerCase();
-  
+
+  // Determine status with fallback to 'other'
+  const status = String(email.status || detectStatus(email.subject || '', email.text || '')).toLowerCase();
+
   return {
     id: email.id,
-    position: email.jobTitle || email.subject.split('-')[0]?.trim() || 'Unknown Position',
-    company: email.company,// || domainMatch ? fromEmail.split('@')[1]?.split('.')[0] || 'Unknown Company' : 'Unknown Company',
-    name: email.from,
-    lastUpdate: email.date,
-    source: source.charAt(0).toUpperCase() + source.slice(1), // Capitalize the first letter
-    status: status,
+    position: email.jobTitle || (email.subject ? email.subject.split('-')[0]?.trim() : 'Unknown Position') || 'Unknown Position',
+    company: email.company || (fromEmail.includes('@') ? fromEmail.split('@')[1].split('.')[0] : 'Unknown Company'),
+    name: email.from || '',
+    lastUpdate: email.date || null,
+    source: source.charAt(0).toUpperCase() + source.slice(1), // Capitalize first letter
+    status,
     statusBadge: status.charAt(0).toUpperCase() + status.slice(1),
-    from: email.from,
-    to: email.to,
-    subject: email.subject,
-    text: email.text,
-    html: email.html,
-    date: email.date,
-    jobTitle: email.jobTitle,
-    type: email.type
+    from: email.from || '',
+    to: email.to || '',
+    subject: email.subject || '',
+    text: email.text || '',
+    html: email.html || '',
+    date: email.date || null,
+    jobTitle: email.jobTitle || '',
+    type: email.type || ''
   };
 }
 
-// Function to fetch and process applications
-export async function fetchApplications() {
+// Fetch all applications (emails) from API
+export async function fetchApplications(date) {
+  if (!date) {
+    console.warn('fetchApplications: No date provided, skipping fetch');
+    return [];
+  }
   try {
-    const response = await fetch('/api/get-emails', {
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      }
-    });
-    if (!response.ok) {
-      throw new Error('Failed to fetch applications');
+    const res = await fetch(`/api/get-emails?date=${encodeURIComponent(date)}`, {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+    if (!res.ok) {
+      const errorMessage = `Failed to fetch applications: ${res.statusText} (${res.status})`;
+      console.error(errorMessage);
+      throw new Error(errorMessage);
     }
-    const emails = await response.json();
+
+    const emails = await res.json();
     return emails.map(mapEmailToApplication);
   } catch (error) {
     console.error('Error fetching applications:', error);
+    // Optionally, log additional information
+    if (error.res) {
+      console.error('Response:', error.res);
+    }
     throw error;
   }
 }
 
-// Function to get application by ID
+// Get application by its ID
 export async function getApplicationById(id) {
   try {
     const response = await fetch('/api/get-emails');
+
     if (!response.ok) {
       throw new Error('Failed to fetch application');
     }
+
     const emails = await response.json();
     const email = emails.find(e => e.id === id);
+
     if (!email) {
       throw new Error('Application not found');
     }
+
     return mapEmailToApplication(email);
   } catch (error) {
     console.error('Error fetching application:', error);
@@ -76,12 +91,12 @@ export async function getApplicationById(id) {
   }
 }
 
-// Function to get summary statistics
+// Get summary statistics and trends
 export async function getSummaryStats() {
   try {
     const applications = await fetchApplications();
-    
-    // Calculate statistics
+
+    // Calculate counts by status
     const stats = {
       totalApplied: applications.length,
       interviewScheduled: applications.filter(app => app.status === 'interview').length,
@@ -90,11 +105,12 @@ export async function getSummaryStats() {
       inProgress: applications.filter(app => app.status === 'offer').length,
     };
 
-    // Calculate trends (comparing with previous month)
+    // Date ranges for trend calculation
     const now = new Date();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    // Applications in last and this month
     const lastMonthApps = applications.filter(app => {
       const appDate = new Date(app.date);
       return appDate >= lastMonth && appDate < thisMonth;
@@ -105,7 +121,7 @@ export async function getSummaryStats() {
       return appDate >= thisMonth;
     });
 
-    // Calculate trends
+    // Calculate trends comparing this month vs last month
     const trends = {
       totalApplied: calculateTrend(thisMonthApps.length, lastMonthApps.length),
       interviewScheduled: calculateTrend(
@@ -133,7 +149,7 @@ export async function getSummaryStats() {
   }
 }
 
-// Function to get recent applications
+// Get most recent applications (default limit 5)
 export async function getRecentApplications(limit = 5) {
   try {
     const applications = await fetchApplications();
@@ -146,27 +162,27 @@ export async function getRecentApplications(limit = 5) {
   }
 }
 
-// Function to get application type distribution
+// Get distribution of application types
 export async function getApplicationTypeDistribution() {
   try {
     const applications = await fetchApplications();
-    const distribution = {
+    return {
       fullTime: applications.filter(app => app.type === 'fullTime').length,
       partTime: applications.filter(app => app.type === 'partTime').length,
       contract: applications.filter(app => app.type === 'Contract').length,
       internship: applications.filter(app => app.type === 'Internship').length,
     };
-    return distribution;
   } catch (error) {
     console.error('Error getting application type distribution:', error);
     throw error;
   }
 }
 
-// Function to get jobs applied overview
+// Get overview of jobs applied last month vs this month
 export async function getJobsAppliedOverview() {
   try {
     const applications = await fetchApplications();
+
     const now = new Date();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -199,14 +215,15 @@ export async function getJobsAppliedOverview() {
   }
 }
 
-// Function to get impressions data
+// Get impressions data (last 7 days) for applications, interviews, offers
 export async function getImpressionsData() {
   try {
     const applications = await fetchApplications();
+
     const now = new Date();
     const lastWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-    
-    // Group applications by date
+
+    // Initialize daily data object for last 7 days
     const dailyData = {};
     for (let i = 0; i < 7; i++) {
       const date = new Date(lastWeek);
@@ -219,7 +236,7 @@ export async function getImpressionsData() {
       };
     }
 
-    // Fill in the data
+    // Aggregate data into daily counts
     applications.forEach(app => {
       const appDate = new Date(app.date);
       if (appDate >= lastWeek) {
@@ -242,7 +259,7 @@ export async function getImpressionsData() {
   }
 }
 
-// Function to get application source distribution
+// Get distribution of application sources/domains
 export async function getApplicationSourceDistribution() {
   try {
     const applications = await fetchApplications();
@@ -252,7 +269,7 @@ export async function getApplicationSourceDistribution() {
       const source = app.source || 'Unknown';
       distribution[source] = (distribution[source] || 0) + 1;
     });
-    
+
     return distribution;
   } catch (error) {
     console.error('Error getting application source distribution:', error);
@@ -260,9 +277,9 @@ export async function getApplicationSourceDistribution() {
   }
 }
 
-// Helper function to calculate trend percentage
+// Helper function to calculate trend percentage between current and previous values
 function calculateTrend(current, previous) {
   if (previous === 0) return current > 0 ? '+100%' : '0%';
   const percentage = ((current - previous) / previous) * 100;
   return `${percentage >= 0 ? '+' : ''}${Math.round(percentage)}%`;
-} 
+}
